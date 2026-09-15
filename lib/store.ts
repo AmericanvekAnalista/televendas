@@ -9,12 +9,36 @@ import type { Proposta, StatusProposta } from "./types";
  * navegador — só lida aqui, no servidor), com políticas restritas a esta
  * tabela específica.
  */
+/**
+ * O cliente HTTP usa os valores como cabeçalhos, que só aceitam caracteres
+ * Latin-1 (código ≤ 255). Se a variável foi colada errado na Vercel (ex: de
+ * um campo mascarado, ou incluindo texto ao redor como um marcador de lista),
+ * o erro de baixo nível não diz qual variável nem onde — então validamos
+ * aqui para apontar exatamente o caractere e a posição culpados.
+ */
+function validarCabecalho(nome: string, valor: string): void {
+  for (let i = 0; i < valor.length; i++) {
+    const codigo = valor.charCodeAt(i);
+    if (codigo > 255) {
+      const antes = valor.slice(Math.max(0, i - 6), i);
+      const depois = valor.slice(i + 1, i + 7);
+      throw new Error(
+        `Variável ${nome} tem um caractere inválido na posição ${i} de ${valor.length} ` +
+          `(código ${codigo}, "${valor[i]}"). Contexto: "...${antes}[AQUI]${depois}...". ` +
+          `Provavelmente foi colada errado — apague e recadastre essa variável na Vercel.`,
+      );
+    }
+  }
+}
+
 function getClient() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
   if (!url || !key) {
     throw new Error("SUPABASE_URL / SUPABASE_ANON_KEY não configurados nas variáveis de ambiente.");
   }
+  validarCabecalho("SUPABASE_URL", url);
+  validarCabecalho("SUPABASE_ANON_KEY", key);
   return createClient(url, key, { auth: { persistSession: false } });
 }
 

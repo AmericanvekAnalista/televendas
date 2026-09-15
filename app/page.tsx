@@ -5,7 +5,7 @@ import { lerPropostasSalvas } from "@/lib/store";
 import type { Proposta } from "@/lib/types";
 
 // Sem isso, o Next serviria a versão pré-renderizada em build (sem os dados
-// importados depois) em vez de reler `data/propostas.json` a cada acesso.
+// importados depois) em vez de consultar o Supabase a cada acesso.
 export const dynamic = "force-dynamic";
 
 export default async function Page() {

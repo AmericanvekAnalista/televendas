@@ -55,13 +55,22 @@ o que já foi importado antes, só atualiza o que mudou. Colunas reconhecidas
 `Status`. Delimitador `,` ou `;` é detectado automaticamente (Excel em
 português exporta com `;`).
 
+### Armazenamento
+
+Os dados ficam numa tabela Supabase dedicada, `propostas_televendas`
+(`lib/store.ts`), no mesmo projeto Supabase que a Americanvek já usa para
+outros painéis (`americanvek-dash-pedidos`) — mas numa tabela própria,
+isolada, sem tocar na tabela `propostas` usada pelo Plano Mestre FULL nem
+nos jobs de sincronização que já existem lá. RLS habilitado; acesso via
+`SUPABASE_URL` + `SUPABASE_ANON_KEY` (variáveis de ambiente, nunca
+commitadas — ver `.env.local.example` se precisar recriar).
+
+Rodar `npm run dev` **dentro deste ambiente de desenvolvimento** não
+alcança `*.supabase.co` (rede restrita do sandbox) — funciona normalmente
+fora daqui (localhost de vocês, ou já em produção na Vercel).
+
 ### Limitações desta primeira versão
 
-- **Armazenamento em arquivo local** (`data/propostas.json`, fora do git).
-  Funciona bem para rodar num servidor único (VPS, Docker, `npm start`
-  contínuo). Em uma hospedagem serverless sem disco persistente (ex: Vercel
-  sem configuração extra), o arquivo não sobrevive a um novo deploy — nesse
-  caso o próximo passo é migrar para um banco pequeno (Supabase/Postgres).
 - **Sem autenticação** no endpoint de importação (`/api/propostas`). Para uso
   interno tudo bem, mas não deixe a URL pública sem controle de acesso.
 
@@ -73,7 +82,25 @@ npm run dev
 ```
 
 Abre em `http://localhost:3000`. `npm run build` gera o build de produção;
-`npm run lint` roda o ESLint.
+`npm run lint` roda o ESLint. Precisa de `SUPABASE_URL` e `SUPABASE_ANON_KEY`
+num `.env.local` (peça os valores a quem configurou o Supabase).
+
+## Deploy (Vercel)
+
+Projeto já criado e linkado ao repositório: **`televendas-dashboard`**, no
+time `americanvek-projetos` (`prj_9su2kpXvrNM1TX4gxliEtYPwlBE8`). Faltam dois
+passos manuais no painel da Vercel (a ferramenta usada para criar o projeto
+não permite configurar isso por fora):
+
+1. **Project Settings → Environment Variables**: adicionar `SUPABASE_URL` e
+   `SUPABASE_ANON_KEY` (mesmos valores do `.env.local` local).
+2. **Project Settings → Git**: trocar a Production Branch de `main` (criada
+   vazia automaticamente pela primeira publicação) para
+   `claude/televendas-dashboard-americanvek-k6hy0a`, que é onde todo o
+   código real está.
+
+Mudar a branch de produção já dispara um deploy novo automaticamente. Depois
+disso, qualquer push nessa branch redeploya sozinho.
 
 ## Estrutura
 

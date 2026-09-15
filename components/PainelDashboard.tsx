@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { StatTile } from "./StatTile";
 import { EstagiosFunil } from "./EstagiosFunil";
 import { TendenciaConcluidas } from "./TendenciaConcluidas";
@@ -13,7 +14,7 @@ interface PainelDashboardProps {
   comparativos: Record<UnidadePeriodo, Comparativo>;
   series: Record<UnidadePeriodo, PontoSerie[]>;
   rascunhosParados: Contagem;
-  fonteDados: "amostra" | "tiny";
+  fonteDados: "amostra" | "importado";
 }
 
 const SEM_DELTA = { abs: 0, pct: null } as const;
@@ -42,7 +43,11 @@ export function PainelDashboard({ comparativos, series, rascunhosParados, fonteD
         <div className="rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-text-secondary">
           <strong className="text-text-primary">Dados de exemplo.</strong> Estes números foram reconstruídos a
           partir dos prints do Tiny (ago/set de 2026) mais dados gerados para completar o histórico — ainda não é
-          uma integração ao vivo com o ERP.
+          uma integração ao vivo com o ERP.{" "}
+          <Link href="/importar" className="font-medium text-text-primary underline underline-offset-2">
+            Importar planilha real
+          </Link>
+          .
         </div>
       ) : null}
 
@@ -54,7 +59,11 @@ export function PainelDashboard({ comparativos, series, rascunhosParados, fonteD
             <span className="text-text-secondary">{comp.rotuloAnterior}</span>
           </p>
         </div>
-        <div className="flex self-start rounded-lg border border-border p-0.5">
+        <div className="flex items-center gap-3 self-start">
+          <Link href="/importar" className="text-sm font-medium text-text-secondary hover:text-text-primary">
+            Importar dados
+          </Link>
+          <div className="flex rounded-lg border border-border p-0.5">
           {(["semana", "mes"] as const).map((u) => (
             <button
               key={u}
@@ -67,6 +76,7 @@ export function PainelDashboard({ comparativos, series, rascunhosParados, fonteD
               {u === "semana" ? "Semana" : "Mês"}
             </button>
           ))}
+          </div>
         </div>
       </div>
 

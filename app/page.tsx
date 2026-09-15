@@ -1,21 +1,34 @@
 import { PainelDashboard } from "@/components/PainelDashboard";
-import { PROPOSTAS, DATA_REFERENCIA, FONTE_DADOS } from "@/lib/mock-data";
+import { PROPOSTAS as PROPOSTAS_AMOSTRA, DATA_REFERENCIA as REFERENCIA_AMOSTRA } from "@/lib/mock-data";
 import { compararPeriodo, serieTendencia, rascunhosParados } from "@/lib/metrics";
+import { lerPropostasSalvas } from "@/lib/store";
+import type { Proposta } from "@/lib/types";
 
-export default function Page() {
+// Sem isso, o Next serviria a versão pré-renderizada em build (sem os dados
+// importados depois) em vez de reler `data/propostas.json` a cada acesso.
+export const dynamic = "force-dynamic";
+
+export default async function Page() {
+  const importadas = await lerPropostasSalvas();
+  const usandoDadosReais = importadas.length > 0;
+
+  const propostas: Proposta[] = usandoDadosReais ? importadas : PROPOSTAS_AMOSTRA;
+  const referencia = usandoDadosReais ? new Date() : REFERENCIA_AMOSTRA;
+  const fonteDados = usandoDadosReais ? "importado" : "amostra";
+
   const comparativos = {
-    semana: compararPeriodo(PROPOSTAS, "semana", DATA_REFERENCIA),
-    mes: compararPeriodo(PROPOSTAS, "mes", DATA_REFERENCIA),
+    semana: compararPeriodo(propostas, "semana", referencia),
+    mes: compararPeriodo(propostas, "mes", referencia),
   };
   const series = {
-    semana: serieTendencia(PROPOSTAS, "semana", DATA_REFERENCIA, 8),
-    mes: serieTendencia(PROPOSTAS, "mes", DATA_REFERENCIA, 6),
+    semana: serieTendencia(propostas, "semana", referencia, 8),
+    mes: serieTendencia(propostas, "mes", referencia, 6),
   };
-  const parados = rascunhosParados(PROPOSTAS, DATA_REFERENCIA, 15);
+  const parados = rascunhosParados(propostas, referencia, 15);
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
-      <PainelDashboard comparativos={comparativos} series={series} rascunhosParados={parados} fonteDados={FONTE_DADOS} />
+      <PainelDashboard comparativos={comparativos} series={series} rascunhosParados={parados} fonteDados={fonteDados} />
     </main>
   );
 }

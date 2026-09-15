@@ -22,22 +22,48 @@ rascunho  →  pendente  →  aguardando  →  concluída
 - **Aprovada** / **Modelo** — existem como abas no Tiny, mas ainda não temos
   exemplos reais de uso; ver "Próximos passos".
 
-## Estado atual: protótipo com dados de exemplo
+## Estado atual: importação por planilha (CSV)
 
-**Os números exibidos hoje não vêm do Tiny ao vivo.** `lib/mock-data.ts`
-reconstrói os dados a partir dos 4 prints enviados (propostas de agosto e
-setembro/2026, abas "rascunhos" e "concluídas"):
+O painel tem duas fontes de dados, escolhidas automaticamente:
 
-- 43 registros são **reais**, copiados linha a linha dos prints.
-- O restante é gerado para (a) completar os totais que os prints confirmaram
-  por aba (ex: agosto fechou com 57 propostas — 25 rascunho, 11 não
-  aprovada, 21 concluída) e (b) simular um histórico anterior (jun–jul/2026)
-  para os gráficos de tendência terem o que comparar.
+- **Se já houver propostas importadas** (`data/propostas.json`, criado pela
+  tela `/importar`), o painel usa esses dados reais e compara contra a data
+  de hoje de verdade.
+- **Caso contrário**, cai de volta para `lib/mock-data.ts` — uma amostra
+  reconstruída a partir dos 4 prints enviados (propostas de agosto e
+  setembro/2026), com um aviso visível no topo do painel ("Dados de
+  exemplo"). 43 desses registros são reais (copiados linha a linha dos
+  prints); o restante é gerado para completar os totais que os prints
+  confirmaram por aba e simular um histórico anterior para os gráficos de
+  tendência terem o que comparar.
 
-Isso é o suficiente para validar o layout, as métricas e os comparativos —
-mas os valores em si são ilustrativos. Assim que a fonte de dados real for
-plugada, nada na interface muda: só `lib/mock-data.ts` é substituído (ver
-abaixo).
+### Como importar
+
+1. Na Tiny, abra Propostas Comerciais, filtre a aba desejada (ex:
+   "concluídas") e exporte como **CSV**.
+2. No painel, clique em "Importar dados" (ou vá em `/importar`).
+3. Escolha o arquivo. Se ele não tiver uma coluna de situação/status, escolha
+   no seletor qual status essas linhas representam (ex: "Concluídas").
+4. Confira a prévia e as linhas com erro (se houver), depois confirme.
+
+Pode importar quantos arquivos quiser, de abas diferentes, quantas vezes
+quiser: cada importação faz **upsert por número da proposta** — nunca perde
+o que já foi importado antes, só atualiza o que mudou. Colunas reconhecidas
+(case-insensitive, com ou sem acento): `Número`, `Data`, `Próx. Contato`,
+`Cliente`, `Valor`, `Marcadores` (usado para extrair o(a) vendedor(a), ex:
+"ana karolina, (televendas)" → "ana karolina") e, se existir, `Situação`/
+`Status`. Delimitador `,` ou `;` é detectado automaticamente (Excel em
+português exporta com `;`).
+
+### Limitações desta primeira versão
+
+- **Armazenamento em arquivo local** (`data/propostas.json`, fora do git).
+  Funciona bem para rodar num servidor único (VPS, Docker, `npm start`
+  contínuo). Em uma hospedagem serverless sem disco persistente (ex: Vercel
+  sem configuração extra), o arquivo não sobrevive a um novo deploy — nesse
+  caso o próximo passo é migrar para um banco pequeno (Supabase/Postgres).
+- **Sem autenticação** no endpoint de importação (`/api/propostas`). Para uso
+  interno tudo bem, mas não deixe a URL pública sem controle de acesso.
 
 ## Rodando localmente
 
@@ -61,6 +87,13 @@ Abre em `http://localhost:3000`. `npm run build` gera o build de produção;
 - `components/` — `PainelDashboard` (client, controla o toggle
   semana/mês) e os gráficos (`EstagiosFunil`, `TendenciaConcluidas`,
   `RankingVendedores`), todos server-driven a partir de `app/page.tsx`.
+- `lib/import.ts` — parser de CSV e normalização (datas, valores em R$,
+  extração de vendedor, mapeamento de status) sem depender de bibliotecas
+  externas.
+- `lib/store.ts` — leitura/escrita de `data/propostas.json` (upsert por
+  número).
+- `app/importar/` + `app/api/propostas/route.ts` — tela de upload e a rota
+  que recebe as propostas já validadas no navegador e salva no store.
 
 ### Como os comparativos funcionam
 
@@ -74,24 +107,35 @@ Isso responde exatamente à pergunta "estamos na frente ou atrás do mesmo
 ponto do período anterior?", em vez de comparar um período parcial com um
 mês fechado inteiro.
 
-## Próximos passos (fonte de dados real)
+## Próximos passos
 
-Para sair do protótipo, `lib/mock-data.ts` precisa ser substituído por dados
-reais do Tiny, mantendo o formato de `Proposta[]`. Duas abordagens possíveis
-— a decisão de qual usar (e o token da API, se for a primeira opção) ainda
-depende da Americanvek:
+### API do Tiny em tempo real (investigado, não implementado)
 
-1. **API do Tiny em tempo real** — uma rota de servidor
-   (`app/api/propostas/route.ts` ou similar) busca as propostas
-   periodicamente. Como o Tiny mostra o status *atual* de cada proposta (não
-   o histórico de mudanças), para comparativos de período totalmente
-   precisos vale guardar um snapshot diário (ex: em um banco) em vez de só
-   consultar o estado corrente.
-2. **Exportação manual (Excel/CSV)** — vocês exportam periodicamente do Tiny
-   e sobem o arquivo; uma rotina converte para `Proposta[]`. Mais simples de
-   colocar no ar, porém depende de atualização manual.
+O ideal de longo prazo é buscar as propostas automaticamente, sem depender de
+alguém lembrar de exportar. Ao investigar isso:
 
-Outros pontos em aberto:
+- A **API v2** da Tiny (token simples, do tipo que a Americanvek já tem) não
+  tem endpoint de orçamentos/propostas comerciais — confirmado testando
+  `orcamentos.pesquisa.php`, que retorna 404 (arquivo inexistente), diferente
+  de outros recursos documentados (pedidos, contatos, produtos, contas a
+  receber/pagar).
+- O recurso provavelmente só existe na **API v3**, que usa **OAuth2** — exige
+  cadastrar um aplicativo na Tiny (gerando `client_id`/`client_secret`) e uma
+  autorização única no navegador (login + aprovação) para gerar o token de
+  acesso, bem mais trabalhoso que colar uma chave.
+- Confirmar isso e implementar exige testar chamadas reais contra
+  `erp.tiny.com.br`, o que este ambiente de desenvolvimento não conseguiu
+  fazer (rede bloqueada para domínios da Tiny) — precisa ser validado em um
+  ambiente com acesso normal à internet.
+
+Quando/se a Americanvek quiser seguir por aí: cadastrar o aplicativo OAuth na
+Tiny, e então uma rota de servidor troca o token periodicamente e busca as
+propostas. Como a Tiny mostra o status *atual* de cada proposta (não o
+histórico de mudanças), vale guardar um snapshot diário (ex: em um banco) em
+vez de só consultar o estado corrente, para os comparativos de período
+saírem exatos.
+
+### Outros pontos em aberto
 
 - Preciso de mais exemplos das abas **"pendentes"**, **"aguardando"** e
   **"aprovadas"** com linhas visíveis — só vi essas abas com 0/1 registro

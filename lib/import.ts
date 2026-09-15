@@ -14,7 +14,7 @@ export interface ResultadoAnalise {
 
 type CampoConhecido = "numero" | "data" | "proximoContato" | "cliente" | "valor" | "vendedor" | "marcadores" | "situacao";
 
-const TAGS_IGNORADAS = ["televendas", "(televendas)"];
+const TAGS_IGNORADAS = ["televendas"];
 
 /**
  * Parser de CSV simples (RFC 4180): aspas duplas, campos com vírgula/ponto e
@@ -83,6 +83,7 @@ function normalizarTexto(s: string): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
 
@@ -91,11 +92,11 @@ export function mapearCabecalhos(cabecalhos: string[]): Partial<Record<CampoConh
   const mapa: Partial<Record<CampoConhecido, number>> = {};
 
   const candidatos: Array<[CampoConhecido, string[]]> = [
-    ["numero", ["numero", "n", "no", "num"]],
+    ["numero", ["numero", "n", "no", "num", "n da proposta", "numero da proposta"]],
     ["data", ["data", "data de criacao", "data criacao"]],
-    ["proximoContato", ["prox. contato", "prox contato", "proximo contato", "data proximo contato"]],
+    ["proximoContato", ["prox contato", "proximo contato", "data proximo contato"]],
     ["cliente", ["cliente", "nome do cliente"]],
-    ["valor", ["valor", "valor total", "valor da proposta"]],
+    ["valor", ["valor", "valor total", "valor da proposta", "total"]],
     ["vendedor", ["vendedor", "responsavel", "vendedora"]],
     ["marcadores", ["marcadores", "marcador", "tags", "etiquetas"]],
     ["situacao", ["situacao", "status"]],

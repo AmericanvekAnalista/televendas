@@ -23,7 +23,8 @@ export default async function Page() {
   };
   const series = {
     semana: serieTendencia(propostas, "semana", referencia, 8),
-    mes: serieTendencia(propostas, "mes", referencia, 6),
+    // 9 pra cobrir desde janeiro, agora que o backfill histórico trouxe o ano todo.
+    mes: serieTendencia(propostas, "mes", referencia, 9),
   };
   const parados = rascunhosParados(propostas, referencia, 15);
   const curvaABC = compararCurvaABC(itensVendidos, referencia);

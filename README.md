@@ -57,13 +57,21 @@ português exporta com `;`).
 
 ### Armazenamento
 
-Os dados ficam numa tabela Supabase dedicada, `propostas_televendas`
-(`lib/store.ts`), no mesmo projeto Supabase que a Americanvek já usa para
-outros painéis (`americanvek-dash-pedidos`) — mas numa tabela própria,
-isolada, sem tocar na tabela `propostas` usada pelo Plano Mestre FULL nem
-nos jobs de sincronização que já existem lá. RLS habilitado; acesso via
-`SUPABASE_URL` + `SUPABASE_ANON_KEY` (variáveis de ambiente, nunca
-commitadas — ver `.env.local.example` se precisar recriar).
+Os dados ficam num projeto Supabase **próprio** (`televendas-dashboard`,
+criado só pra esse painel) — não no projeto compartilhado
+(`americanvek-dash-pedidos`) que a Americanvek já usa pro Plano Mestre FULL.
+Inicialmente essa tabela vivia lá, isolada por RLS; migramos pra um projeto
+separado quando a integração com a Tiny passou a precisar da
+`service_role key` (que ignora RLS e dá acesso a tudo no projeto) — melhor
+não ter uma credencial dessas com alcance sobre dados de outra pessoa.
+
+Duas tabelas:
+- `propostas_televendas` — os dados do painel (`lib/store.ts`). RLS
+  habilitado, acesso via `SUPABASE_URL` + `SUPABASE_ANON_KEY`.
+- `tiny_oauth_tokens` — token da integração com a Tiny (`lib/tiny-oauth.ts`).
+  RLS habilitado, **sem** policy pra anon — só acessível via
+  `SUPABASE_SERVICE_ROLE_KEY`, mantendo esse token isolado até do resto
+  deste mesmo app.
 
 Rodar `npm run dev` **dentro deste ambiente de desenvolvimento** não
 alcança `*.supabase.co` (rede restrita do sandbox) — funciona normalmente

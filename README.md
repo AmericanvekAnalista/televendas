@@ -220,6 +220,17 @@ alguém lembrar de exportar planilha. Estado atual:
   mudanças — como o upsert atualiza esse estado a cada sincronização, os
   comparativos de período continuam saindo exatos, sem precisar de um
   snapshot diário separado.
+- **Backfill histórico.** Por padrão `/api/tiny/sync` só olha os últimos 45
+  dias (o suficiente pros comparativos de período). Pra puxar histórico mais
+  antigo (ex: reconstruir a Curva ABC desde janeiro), chame com
+  `?janela=<dias>` — mas como o detalhe de cada orçamento da empresa inteira
+  (não só televendas) exige uma chamada individual à Tiny, uma janela grande
+  não cabe numa única execução: cada chamada processa no máximo
+  `LOTE_HISTORICO` (150) orçamentos e devolve `proximoOffset` na resposta;
+  repita a chamada com `?janela=<mesmos dias>&offset=<proximoOffset>` até a
+  resposta trazer `proximoOffset: null`. Não precisa rodar isso de novo
+  depois — é só pra preencher o passado uma vez; o cron diário continua
+  cobrindo só a janela de 45 dias.
 - **A Tiny tem um limite de requisições não documentado.** Buscar o nome
   de cada cliente exige uma chamada por cliente, e em rajadas grandes uma
   parte falha mesmo com espera entre tentativas — quando isso acontece, o

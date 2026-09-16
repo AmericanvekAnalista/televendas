@@ -17,8 +17,15 @@ const VENDEDORES_TELEVENDAS = ["ana karolina", "ivis"];
 
 /** Só sincroniza o que pode entrar nos comparativos de período (mês atual +
  * o mês anterior até o mesmo dia), com folga. Evita varrer os milhares de
- * orçamentos antigos da empresa inteira a cada sincronização. */
+ * orçamentos antigos da empresa inteira a cada sincronização. Sobrescrevível
+ * via `?janela=` (dias) pra backfill histórico manual. */
 const JANELA_DIAS = 45;
+
+/** Backfill histórico (`?janela=` grande) não cabe numa chamada só — o
+ * detalhe de cada orçamento da empresa inteira (não só televendas) exige
+ * uma chamada individual à Tiny. Processa no máximo isso por vez e devolve
+ * `proximoOffset` pra continuar com `?offset=`. */
+const LOTE_HISTORICO = 150;
 
 const MAPA_SITUACAO: Record<string, StatusProposta> = {
   rascunho: "rascunho",
@@ -117,7 +124,11 @@ async function emLotes<T, R>(itens: T[], concorrencia: number, fn: (item: T) => 
   return resultado;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const janela = Number(url.searchParams.get("janela")) || JANELA_DIAS;
+  const offset = Number(url.searchParams.get("offset")) || 0;
+
   let token: string;
   try {
     token = await obterTokenValido();
@@ -126,23 +137,28 @@ export async function GET() {
   }
 
   const limiteData = new Date();
-  limiteData.setDate(limiteData.getDate() - JANELA_DIAS);
+  limiteData.setDate(limiteData.getDate() - janela);
   const limiteDataStr = limiteData.toISOString().slice(0, 10);
 
   // 1. Lista paginada (mais recentes primeiro), parando assim que a página
   // só tem orçamentos mais antigos que a janela que nos interessa.
-  const itens: ItemLista[] = [];
+  const todosItens: ItemLista[] = [];
   const limit = 100;
-  for (let offset = 0; ; offset += limit) {
+  for (let paginaOffset = 0; ; paginaOffset += limit) {
     const { dado: pagina } = await buscarJson<{ itens: ItemLista[]; paginacao: { total: number } }>(
-      `/orcamentos?limit=${limit}&offset=${offset}`,
+      `/orcamentos?limit=${limit}&offset=${paginaOffset}`,
       token,
     );
     if (!pagina || pagina.itens.length === 0) break;
-    itens.push(...pagina.itens.filter((i) => i.data >= limiteDataStr));
+    todosItens.push(...pagina.itens.filter((i) => i.data >= limiteDataStr));
     const maisAntigoDaPagina = pagina.itens[pagina.itens.length - 1].data;
-    if (maisAntigoDaPagina < limiteDataStr || offset + limit >= pagina.paginacao.total) break;
+    if (maisAntigoDaPagina < limiteDataStr || paginaOffset + limit >= pagina.paginacao.total) break;
   }
+
+  // Corta o lote desta chamada — em janelas grandes (backfill) o resto fica
+  // pra próxima chamada, com offset=proximoOffset.
+  const itens = todosItens.slice(offset, offset + LOTE_HISTORICO);
+  const proximoOffset = offset + LOTE_HISTORICO < todosItens.length ? offset + LOTE_HISTORICO : null;
 
   // 2. Detalhe de cada um — só ele tem quem assinou a proposta.
   const comDetalhe = await emLotes(itens, 5, async (item) => ({
@@ -205,13 +221,23 @@ export async function GET() {
   }
 
   if (propostas.length === 0) {
-    return Response.json({ ok: true, mensagem: "Nenhuma proposta de televendas encontrada na janela de tempo.", total: 0 });
+    return Response.json({
+      ok: true,
+      mensagem: "Nenhuma proposta de televendas encontrada na janela de tempo.",
+      total: 0,
+      totalNaJanela: todosItens.length,
+      offset,
+      proximoOffset,
+    });
   }
 
   const resumo = await mesclarESalvar(propostas);
   return Response.json({
     ok: true,
     examinadas: itens.length,
+    totalNaJanela: todosItens.length,
+    offset,
+    proximoOffset,
     encontradas: propostas.length,
     detalhesComFalha,
     contatosComFalha,

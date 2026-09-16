@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * publicado — depois disso o mapeamento pra `mesclarESalvar` entra nesta
  * mesma rota.
  */
-export async function GET(request: Request) {
+export async function GET() {
   let token: string;
   try {
     token = await obterTokenValido();
@@ -18,10 +18,9 @@ export async function GET(request: Request) {
     return Response.json({ erro: (e as Error).message }, { status: 400 });
   }
 
-  // Repassa a query string recebida direto pra Tiny, pra dar pra testar
-  // parâmetros (paginação, expand, etc.) sem precisar mudar o código.
-  const { search } = new URL(request.url);
-  const resposta = await fetch(`${TINY_API_BASE}/orcamentos${search}`, {
+  // Teste temporário: endpoint de detalhe de UM orçamento específico, pra
+  // ver se ele traz o nome do cliente (a listagem só devolve contato.id).
+  const resposta = await fetch(`${TINY_API_BASE}/orcamentos/927909045`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const corpo = await resposta.text();

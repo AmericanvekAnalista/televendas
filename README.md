@@ -121,6 +121,8 @@ disso, qualquer push nessa branch redeploya sozinho.
   número).
 - `app/importar/` + `app/api/propostas/route.ts` — tela de upload e a rota
   que recebe as propostas já validadas no navegador e salva no store.
+- `lib/tiny-oauth.ts` + `app/api/tiny/` — integração OAuth2 com a Tiny (ver
+  "Próximos passos" abaixo; ainda em andamento).
 
 ### Como os comparativos funcionam
 
@@ -136,31 +138,40 @@ mês fechado inteiro.
 
 ## Próximos passos
 
-### API do Tiny em tempo real (investigado, não implementado)
+### API do Tiny em tempo real (em andamento)
 
 O ideal de longo prazo é buscar as propostas automaticamente, sem depender de
-alguém lembrar de exportar. Ao investigar isso:
+alguém lembrar de exportar. Estado atual:
 
-- A **API v2** da Tiny (token simples, do tipo que a Americanvek já tem) não
-  tem endpoint de orçamentos/propostas comerciais — confirmado testando
-  `orcamentos.pesquisa.php`, que retorna 404 (arquivo inexistente), diferente
-  de outros recursos documentados (pedidos, contatos, produtos, contas a
-  receber/pagar).
-- O recurso provavelmente só existe na **API v3**, que usa **OAuth2** — exige
-  cadastrar um aplicativo na Tiny (gerando `client_id`/`client_secret`) e uma
-  autorização única no navegador (login + aprovação) para gerar o token de
-  acesso, bem mais trabalhoso que colar uma chave.
-- Confirmar isso e implementar exige testar chamadas reais contra
-  `erp.tiny.com.br`, o que este ambiente de desenvolvimento não conseguiu
-  fazer (rede bloqueada para domínios da Tiny) — precisa ser validado em um
-  ambiente com acesso normal à internet.
-
-Quando/se a Americanvek quiser seguir por aí: cadastrar o aplicativo OAuth na
-Tiny, e então uma rota de servidor troca o token periodicamente e busca as
-propostas. Como a Tiny mostra o status *atual* de cada proposta (não o
-histórico de mudanças), vale guardar um snapshot diário (ex: em um banco) em
-vez de só consultar o estado corrente, para os comparativos de período
-saírem exatos.
+- A **API v2** da Tiny (token simples) não tem endpoint de orçamentos —
+  confirmado testando `orcamentos.pesquisa.php`, que retorna 404.
+- O recurso existe na **API v3**, que usa **OAuth2**. Já cadastramos o
+  aplicativo na Tiny (nome "Dashboard Televendas") com permissão de leitura
+  em Orçamentos, e o fluxo de autorização está implementado:
+  - `lib/tiny-oauth.ts` — troca de código por token, renovação automática via
+    refresh_token. Usa a **service_role key** do Supabase (não a anon key),
+    porque a tabela `tiny_oauth_tokens` guarda um token com acesso de leitura
+    ao ERP ao vivo e não tem policy de RLS pra anon — fica isolada do resto
+    do app de propósito.
+  - `app/api/tiny/authorize` — visite uma vez, logado na Tiny, pra aprovar o
+    acesso e gerar o primeiro refresh_token.
+  - `app/api/tiny/callback` — recebe o retorno da Tiny e salva o token.
+  - `app/api/tiny/sync` — **ainda em modo descoberta**: busca
+    `GET /orcamentos` e devolve a resposta bruta, sem mapear pros campos de
+    `Proposta` ainda. O formato exato do endpoint (nome certo, paginação,
+    nomes de campo) não dá pra confirmar num ambiente sem acesso à Tiny —
+    falta testar isso publicado e então implementar o mapeamento real +
+    upsert via `mesclarESalvar` (a função já existe e não muda).
+- Variáveis de ambiente necessárias (Vercel): `TINY_CLIENT_ID`,
+  `TINY_CLIENT_SECRET` (Production + Preview) e `SUPABASE_SERVICE_ROLE_KEY`
+  (Production + Preview — pegar em Supabase → Project Settings → API →
+  service_role key).
+- Falta ainda: confirmar o formato da resposta, implementar o mapeamento, e
+  decidir a cadência de sincronização (a Tiny só mostra o status *atual* de
+  cada proposta, não o histórico — vale considerar um snapshot diário em vez
+  de só sobrescrever o estado corrente, pra os comparativos de período
+  saírem exatos). Agendamento (Vercel Cron) só depois de validar que o
+  fetch + mapeamento funcionam de verdade.
 
 ### Outros pontos em aberto
 

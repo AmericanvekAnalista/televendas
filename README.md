@@ -162,32 +162,42 @@ alguém lembrar de exportar. Estado atual:
     ao ERP ao vivo e não tem policy de RLS pra anon — fica isolada do resto
     do app de propósito.
   - `app/api/tiny/authorize` — visite uma vez, logado na Tiny, pra aprovar o
-    acesso e gerar o primeiro refresh_token.
+    acesso e gerar o primeiro refresh_token. Precisa autorizar de novo
+    sempre que uma permissão nova for adicionada ao aplicativo na Tiny (o
+    token antigo não ganha o acesso novo sozinho).
   - `app/api/tiny/callback` — recebe o retorno da Tiny e salva o token.
-  - `app/api/tiny/sync` — **ainda em modo descoberta**: busca
-    `GET /orcamentos` e devolve a resposta bruta, sem mapear pros campos de
-    `Proposta` ainda. O formato exato do endpoint (nome certo, paginação,
-    nomes de campo) não dá pra confirmar num ambiente sem acesso à Tiny —
-    falta testar isso publicado e então implementar o mapeamento real +
-    upsert via `mesclarESalvar` (a função já existe e não muda).
+  - `app/api/tiny/sync` — busca os orçamentos dos últimos 45 dias
+    (`GET /orcamentos`, paginado), o detalhe de cada um (só ele traz quem
+    assinou a proposta) e o nome de cada cliente (`GET /contatos/{id}`,
+    uma vez por cliente único). Filtra só quem tem "ana karolina" ou "ivis"
+    na assinatura — a Tiny não marca qual orçamento é de televendas, então
+    usamos isso como proxy do marcador que a exportação por CSV usava — e
+    salva via `mesclarESalvar` (mesmo upsert por número da importação
+    manual). Chamando `GET /api/tiny/sync` roda uma sincronização; ainda
+    não tem agendamento automático (ver "Outros pontos em aberto").
+- Permissões necessárias no aplicativo da Tiny: **Orçamentos** e
+  **Contatos**, só leitura.
 - Variáveis de ambiente necessárias (Vercel): `TINY_CLIENT_ID`,
   `TINY_CLIENT_SECRET` (Production + Preview) e `SUPABASE_SERVICE_ROLE_KEY`
   (Production + Preview — pegar em Supabase → Project Settings → API →
   service_role key).
-- Falta ainda: confirmar o formato da resposta, implementar o mapeamento, e
-  decidir a cadência de sincronização (a Tiny só mostra o status *atual* de
-  cada proposta, não o histórico — vale considerar um snapshot diário em vez
-  de só sobrescrever o estado corrente, pra os comparativos de período
-  saírem exatos). Agendamento (Vercel Cron) só depois de validar que o
-  fetch + mapeamento funcionam de verdade.
+- Falta ainda: agendar a sincronização automaticamente (hoje só roda quando
+  alguém acessa `/api/tiny/sync` manualmente — falta um Vercel Cron
+  chamando essa rota periodicamente). A Tiny só mostra o status *atual* de
+  cada proposta, não o histórico de mudanças — como o upsert atualiza esse
+  estado a cada sincronização, os comparativos de período continuam saindo
+  exatos desde que a sincronização rode com uma frequência razoável (não
+  precisa de snapshot diário separado).
 
 ### Outros pontos em aberto
 
 - Preciso de mais exemplos das abas **"pendentes"**, **"aguardando"** e
   **"aprovadas"** com linhas visíveis — só vi essas abas com 0/1 registro
   nos prints, então o comportamento delas no funil é uma estimativa.
-- Confirmar se há mais vendedores(as) de televendas além de "ana karolina" e
-  "ivis" (os únicos marcadores vistos nos prints).
+- O filtro de "é televendas?" usa o nome de quem assina a proposta
+  (`assinatura.responsavel`) — só "ana karolina" e "ivis" são reconhecidos
+  hoje (`VENDEDORES_TELEVENDAS` em `app/api/tiny/sync/route.ts`). Se entrar
+  mais alguém no time, precisa adicionar o nome ali.
 - Depois de validado com a Americanvek, replicar o mesmo painel para a Ardut
   (provavelmente outro token/conta do Tiny — a estrutura já foi pensada para
   isso, bastando parametrizar a fonte de dados por empresa).

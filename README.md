@@ -146,10 +146,10 @@ mês fechado inteiro.
 
 ## Próximos passos
 
-### API do Tiny em tempo real (em andamento)
+### API do Tiny em tempo real (funcionando)
 
-O ideal de longo prazo é buscar as propostas automaticamente, sem depender de
-alguém lembrar de exportar. Estado atual:
+O painel busca as propostas de televendas automaticamente, sem depender de
+alguém lembrar de exportar planilha. Estado atual:
 
 - A **API v2** da Tiny (token simples) não tem endpoint de orçamentos —
   confirmado testando `orcamentos.pesquisa.php`, que retorna 404.
@@ -173,21 +173,26 @@ alguém lembrar de exportar. Estado atual:
     na assinatura — a Tiny não marca qual orçamento é de televendas, então
     usamos isso como proxy do marcador que a exportação por CSV usava — e
     salva via `mesclarESalvar` (mesmo upsert por número da importação
-    manual). Chamando `GET /api/tiny/sync` roda uma sincronização; ainda
-    não tem agendamento automático (ver "Outros pontos em aberto").
+    manual).
+  - `vercel.json` — agenda `/api/tiny/sync` pra rodar sozinho todo dia às
+    9h UTC (6h em Brasília), via Vercel Cron. Pra mudar o horário, edite o
+    campo `schedule` (formato cron) e faça push.
 - Permissões necessárias no aplicativo da Tiny: **Orçamentos** e
   **Contatos**, só leitura.
 - Variáveis de ambiente necessárias (Vercel): `TINY_CLIENT_ID`,
   `TINY_CLIENT_SECRET` (Production + Preview) e `SUPABASE_SERVICE_ROLE_KEY`
   (Production + Preview — pegar em Supabase → Project Settings → API →
   service_role key).
-- Falta ainda: agendar a sincronização automaticamente (hoje só roda quando
-  alguém acessa `/api/tiny/sync` manualmente — falta um Vercel Cron
-  chamando essa rota periodicamente). A Tiny só mostra o status *atual* de
-  cada proposta, não o histórico de mudanças — como o upsert atualiza esse
-  estado a cada sincronização, os comparativos de período continuam saindo
-  exatos desde que a sincronização rode com uma frequência razoável (não
-  precisa de snapshot diário separado).
+- A Tiny só mostra o status *atual* de cada proposta, não o histórico de
+  mudanças — como o upsert atualiza esse estado a cada sincronização, os
+  comparativos de período continuam saindo exatos, sem precisar de um
+  snapshot diário separado.
+- **A Tiny tem um limite de requisições não documentado.** Buscar o nome
+  de cada cliente exige uma chamada por cliente, e em rajadas grandes uma
+  parte falha mesmo com espera entre tentativas — quando isso acontece, o
+  cliente fica como "não identificado" (não afeta os números do painel,
+  só esse campo). Como a sincronização roda todo dia sobre os últimos 45
+  dias, o que falhar hoje tem nova chance amanhã.
 
 ### Outros pontos em aberto
 
@@ -198,6 +203,10 @@ alguém lembrar de exportar. Estado atual:
   (`assinatura.responsavel`) — só "ana karolina" e "ivis" são reconhecidos
   hoje (`VENDEDORES_TELEVENDAS` em `app/api/tiny/sync/route.ts`). Se entrar
   mais alguém no time, precisa adicionar o nome ali.
+- `/api/tiny/sync` não tem autenticação própria (mesma limitação do
+  `/api/propostas` — ver "Limitações desta primeira versão"). Quem souber
+  a URL pode disparar uma sincronização manualmente; não expõe dados, só
+  consome a cota da Tiny.
 - Depois de validado com a Americanvek, replicar o mesmo painel para a Ardut
   (provavelmente outro token/conta do Tiny — a estrutura já foi pensada para
   isso, bastando parametrizar a fonte de dados por empresa).

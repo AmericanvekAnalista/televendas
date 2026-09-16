@@ -4,8 +4,8 @@ import type { Proposta, StatusProposta } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 // Com retry + pausas entre lotes pra lidar com o rate limit da Tiny, uma
-// sincronização pode legitimamente passar de 1 minuto.
-export const maxDuration = 120;
+// sincronização pode legitimamente passar de 1-2 minutos no pior caso.
+export const maxDuration = 180;
 
 /**
  * A Tiny não marca quais orçamentos são de televendas (sem tag/campo pra
@@ -81,7 +81,7 @@ function dormir(ms: number): Promise<void> {
  * chamadas ainda falhava (rate limit real da Tiny, não só excesso de
  * paralelismo) — tenta de novo com espera crescente antes de desistir.
  */
-async function buscarJson<T>(caminho: string, token: string, tentativas = 3): Promise<RespostaBusca<T>> {
+async function buscarJson<T>(caminho: string, token: string, tentativas = 3, esperaBaseMs = 500): Promise<RespostaBusca<T>> {
   let ultimoStatus = 0;
   for (let tentativa = 0; tentativa < tentativas; tentativa++) {
     const resposta = await fetch(`${TINY_API_BASE}${caminho}`, {
@@ -89,7 +89,7 @@ async function buscarJson<T>(caminho: string, token: string, tentativas = 3): Pr
     });
     ultimoStatus = resposta.status;
     if (resposta.ok) return { status: resposta.status, dado: await resposta.json() };
-    if (tentativa < tentativas - 1) await dormir(500 * (tentativa + 1));
+    if (tentativa < tentativas - 1) await dormir(esperaBaseMs * (tentativa + 1));
   }
   return { status: ultimoStatus, dado: null };
 }
@@ -152,10 +152,16 @@ export async function GET() {
     })
     .filter((c) => c !== null);
 
+  // Um respiro antes da próxima leva de chamadas — a fase anterior (uma
+  // por orçamento) já consome boa parte da cota da Tiny nessa janela.
+  await dormir(3000);
+
   // 3. Nome do cliente — uma chamada por contato único, não por proposta.
   const contatoIds = [...new Set(candidatos.map((c) => c.item.contato.id))];
   const nomes = await emLotes(contatoIds, 5, async (id) => {
-    const { status, dado } = await buscarJson<{ nome: string }>(`/contatos/${id}`, token);
+    // Mais tentativas que o padrão: essa fase, vindo logo depois da de
+    // detalhes, é a que mais esbarra no limite da Tiny.
+    const { status, dado } = await buscarJson<{ nome: string }>(`/contatos/${id}`, token, 5);
     return { id, status, nome: dado?.nome ?? null };
   });
   const contatosComFalha = nomes.filter((n) => n.status !== 200).length;

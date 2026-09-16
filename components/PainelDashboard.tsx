@@ -35,7 +35,7 @@ export function PainelDashboard({ comparativos, series, rascunhosParados, fonteD
     comp.atual.ticketMedio !== null && comp.anterior.ticketMedio !== null
       ? calcularDelta(comp.atual.ticketMedio, comp.anterior.ticketMedio)
       : SEM_DELTA;
-  const deltaEmAberto = calcularDelta(comp.atual.emAberto.count, comp.anterior.emAberto.count);
+  const deltaEmAbertoValor = calcularDelta(comp.atual.emAberto.valor, comp.anterior.emAberto.valor);
 
   return (
     <div className="flex flex-col gap-6">
@@ -90,8 +90,8 @@ export function PainelDashboard({ comparativos, series, rascunhosParados, fonteD
         />
         <StatTile
           label="Concluídas (ganhas)"
-          value={formatarNumero(comp.atual.concluida.count)}
-          subvalor={formatarMoedaCompacta(comp.atual.concluida.valor)}
+          value={formatarMoedaCompacta(comp.atual.concluida.valor)}
+          subvalor={`${formatarNumero(comp.atual.concluida.count)} proposta${comp.atual.concluida.count === 1 ? "" : "s"}`}
           delta={deltaConcluidaValor}
           rotuloComparacao={rotuloAnterior}
         />
@@ -109,9 +109,9 @@ export function PainelDashboard({ comparativos, series, rascunhosParados, fonteD
         />
         <StatTile
           label="Em aberto (backlog)"
-          value={formatarNumero(comp.atual.emAberto.count)}
-          subvalor={formatarMoedaCompacta(comp.atual.emAberto.valor)}
-          delta={deltaEmAberto}
+          value={formatarMoedaCompacta(comp.atual.emAberto.valor)}
+          subvalor={`${formatarNumero(comp.atual.emAberto.count)} proposta${comp.atual.emAberto.count === 1 ? "" : "s"}`}
+          delta={deltaEmAbertoValor}
           direcaoBoa="down"
           rotuloComparacao={rotuloAnterior}
         />

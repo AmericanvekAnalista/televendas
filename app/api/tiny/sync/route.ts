@@ -3,7 +3,9 @@ import { mesclarESalvar } from "@/lib/store";
 import type { Proposta, StatusProposta } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// Com retry + pausas entre lotes pra lidar com o rate limit da Tiny, uma
+// sincronização pode legitimamente passar de 1 minuto.
+export const maxDuration = 120;
 
 /**
  * A Tiny não marca quais orçamentos são de televendas (sem tag/campo pra
@@ -70,16 +72,26 @@ interface RespostaBusca<T> {
   dado: T | null;
 }
 
-async function buscarJson<T>(caminho: string, token: string): Promise<RespostaBusca<T>> {
-  const resposta = await fetch(`${TINY_API_BASE}${caminho}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!resposta.ok) return { status: resposta.status, dado: null };
-  return { status: resposta.status, dado: await resposta.json() };
-}
-
 function dormir(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Com 5 em paralelo + pausa de 300ms entre lotes, mais da metade das
+ * chamadas ainda falhava (rate limit real da Tiny, não só excesso de
+ * paralelismo) — tenta de novo com espera crescente antes de desistir.
+ */
+async function buscarJson<T>(caminho: string, token: string, tentativas = 3): Promise<RespostaBusca<T>> {
+  let ultimoStatus = 0;
+  for (let tentativa = 0; tentativa < tentativas; tentativa++) {
+    const resposta = await fetch(`${TINY_API_BASE}${caminho}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    ultimoStatus = resposta.status;
+    if (resposta.ok) return { status: resposta.status, dado: await resposta.json() };
+    if (tentativa < tentativas - 1) await dormir(500 * (tentativa + 1));
+  }
+  return { status: ultimoStatus, dado: null };
 }
 
 /**

@@ -18,12 +18,17 @@ export async function GET() {
     return Response.json({ erro: (e as Error).message }, { status: 400 });
   }
 
-  // Teste temporário: endpoint de detalhe de UM orçamento específico, pra
-  // ver se ele traz o nome do cliente (a listagem só devolve contato.id).
-  const resposta = await fetch(`${TINY_API_BASE}/orcamentos/927909045`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const corpo = await resposta.text();
+  // Teste temporário: contato (nome do cliente) e vendedores (pra achar os
+  // IDs de ana karolina / ivis e conseguir filtrar só as propostas de
+  // televendas dentre todos os orçamentos da empresa).
+  const [contato, vendedores] = await Promise.all([
+    fetch(`${TINY_API_BASE}/contatos/787470942`, { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
+      r.text().then((t) => ({ status: r.status, corpo: t.slice(0, 3000) })),
+    ),
+    fetch(`${TINY_API_BASE}/vendedores`, { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
+      r.text().then((t) => ({ status: r.status, corpo: t.slice(0, 8000) })),
+    ),
+  ]);
 
-  return Response.json({ status: resposta.status, corpo: corpo.slice(0, 20000) }, { status: resposta.ok ? 200 : 502 });
+  return Response.json({ contato, vendedores });
 }

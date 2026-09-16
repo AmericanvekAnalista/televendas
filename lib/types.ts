@@ -10,6 +10,16 @@ export type StatusProposta =
 /** Vendedor(a) responsável pela proposta (marcador no Tiny). */
 export type Vendedor = string;
 
+/** Item/produto de uma proposta — só disponível via sincronização com a
+ * Tiny (a exportação por CSV não tem essa informação). Base da Curva ABC. */
+export interface ItemProduto {
+  produtoId: number;
+  sku: string | null;
+  descricao: string;
+  quantidade: number;
+  valorUnitario: number;
+}
+
 export interface Proposta {
   id: string;
   numero: number;
@@ -23,6 +33,7 @@ export interface Proposta {
   status: StatusProposta;
   /** Presente quando a proposta já gerou pedido de venda / NF integrados. */
   integrada: boolean;
+  itens?: ItemProduto[];
 }
 
 /** Estágios do funil, na ordem em que uma proposta avança. */

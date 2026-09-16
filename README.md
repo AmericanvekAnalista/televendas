@@ -22,6 +22,29 @@ rascunho  →  pendente  →  aguardando  →  concluída
 - **Aprovada** / **Modelo** — existem como abas no Tiny, mas ainda não temos
   exemplos reais de uso; ver "Próximos passos".
 
+## Curva ABC de produtos
+
+Classificação clássica de Pareto dos produtos vendidos (só propostas
+**concluídas**, só televendas — mesmo filtro de vendedor do resto do
+painel), comparando o mês atual com o mês anterior:
+
+- Produtos ordenados por valor de venda, do maior pro menor.
+- **Classe A** — produtos que somam até 80% do valor acumulado.
+- **Classe B** — de 80% a 95%.
+- **Classe C** — os últimos 5%.
+
+Só existe pra quem sincroniza com a Tiny: a exportação por CSV não traz os
+itens/produtos de cada proposta, só o valor total — essa seção fica vazia
+em "dados de exemplo" e em painéis alimentados só por planilha.
+
+O gráfico clássico de Pareto usa dois eixos (barras de valor + linha de %
+acumulado); a skill de dataviz usada neste projeto proíbe eixo duplo (a
+combinação de duas escalas é arbitrária e inventa correlação que não existe
+nos dados). Por isso o comparativo mensal aqui aparece em cards por classe
+(valor + variação vs. mês anterior, igual ao resto do painel) e o detalhe
+por produto numa tabela — com % individual e % acumulado como colunas lado
+a lado, não como um segundo eixo.
+
 ## Estado atual: importação por planilha (CSV)
 
 O painel tem duas fontes de dados, escolhidas automaticamente:
@@ -72,6 +95,10 @@ Duas tabelas:
   RLS habilitado, **sem** policy pra anon — só acessível via
   `SUPABASE_SERVICE_ROLE_KEY`, mantendo esse token isolado até do resto
   deste mesmo app.
+- `propostas_televendas_itens` — os produtos de cada proposta concluída
+  (`lib/store.ts`), base da Curva ABC (ver acima). RLS habilitado, acesso
+  via `SUPABASE_ANON_KEY`. Só é preenchida pela sincronização com a Tiny —
+  a exportação por CSV não traz essa informação.
 
 Rodar `npm run dev` **dentro deste ambiente de desenvolvimento** não
 alcança `*.supabase.co` (rede restrita do sandbox) — funciona normalmente
@@ -117,6 +144,9 @@ disso, qualquer push nessa branch redeploya sozinho.
 - `lib/metrics.ts` — agregações por status, cálculo dos períodos
   "semana/mês até hoje" e do período equivalente anterior, série de
   tendência, rascunhos parados.
+- `lib/curva-abc.ts` — classificação ABC (cortes 80%/95%) e comparativo mês
+  atual vs. mês anterior, a partir de `lib/store.ts:lerItensVendidos`.
+- `components/CurvaABC.tsx` — cards por classe + tabela de produtos.
 - `lib/theme.ts` / `lib/use-modo.ts` — paleta (clara/escura) validada com a
   skill de dataviz e detecção do esquema de cores do sistema.
 - `components/` — `PainelDashboard` (client, controla o toggle
@@ -168,12 +198,15 @@ alguém lembrar de exportar planilha. Estado atual:
   - `app/api/tiny/callback` — recebe o retorno da Tiny e salva o token.
   - `app/api/tiny/sync` — busca os orçamentos dos últimos 45 dias
     (`GET /orcamentos`, paginado), o detalhe de cada um (só ele traz quem
-    assinou a proposta) e o nome de cada cliente (`GET /contatos/{id}`,
-    uma vez por cliente único). Filtra só quem tem "ana karolina" ou "ivis"
-    na assinatura — a Tiny não marca qual orçamento é de televendas, então
-    usamos isso como proxy do marcador que a exportação por CSV usava — e
-    salva via `mesclarESalvar` (mesmo upsert por número da importação
-    manual).
+    assinou a proposta **e** os itens/produtos do orçamento) e o nome de
+    cada cliente (`GET /contatos/{id}`, uma vez por cliente único). Filtra
+    só quem tem "ana karolina" ou "ivis" na assinatura — a Tiny não marca
+    qual orçamento é de televendas, então usamos isso como proxy do
+    marcador que a exportação por CSV usava — e salva via `mesclarESalvar`
+    (mesmo upsert por número da importação manual). Os itens só são
+    guardados para orçamentos **concluídos** (base da Curva ABC, ver
+    acima) — descartados pros demais status, que não interessam pra
+    análise de produtos vendidos.
   - `vercel.json` — agenda `/api/tiny/sync` pra rodar sozinho todo dia às
     9h UTC (6h em Brasília), via Vercel Cron. Pra mudar o horário, edite o
     campo `schedule` (formato cron) e faça push.

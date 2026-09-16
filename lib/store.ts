@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Proposta, StatusProposta } from "./types";
+import type { ItemProduto, Proposta, StatusProposta } from "./types";
 
 /**
  * Persistência em uma tabela Supabase dedicada (`propostas_televendas`),
@@ -74,6 +74,45 @@ export async function lerPropostasSalvas(): Promise<Proposta[]> {
   return (data ?? []).map(paraProposta);
 }
 
+/** Item de proposta concluída, com a data da proposta pai já embutida
+ * (denormalizada na tabela) — base da Curva ABC. */
+export interface ItemVendido {
+  numeroProposta: number;
+  produtoId: number;
+  sku: string | null;
+  descricao: string;
+  quantidade: number;
+  valorTotal: number;
+  dataCriacao: string;
+}
+
+interface LinhaItem {
+  numero_proposta: number;
+  produto_id: number;
+  sku: string | null;
+  descricao: string;
+  quantidade: number | string;
+  valor_total: number | string;
+  data_criacao: string;
+}
+
+export async function lerItensVendidos(): Promise<ItemVendido[]> {
+  const supabase = getClient();
+  const { data, error } = await supabase
+    .from("propostas_televendas_itens")
+    .select("numero_proposta, produto_id, sku, descricao, quantidade, valor_total, data_criacao");
+  if (error) throw new Error(`Falha ao ler itens de produtos do Supabase: ${error.message}`);
+  return (data ?? []).map((linha: LinhaItem) => ({
+    numeroProposta: linha.numero_proposta,
+    produtoId: linha.produto_id,
+    sku: linha.sku,
+    descricao: linha.descricao,
+    quantidade: Number(linha.quantidade),
+    valorTotal: Number(linha.valor_total),
+    dataCriacao: linha.data_criacao,
+  }));
+}
+
 export interface ResumoMesclagem {
   novasCriadas: number;
   atualizadas: number;
@@ -112,6 +151,27 @@ export async function mesclarESalvar(novas: Proposta[]): Promise<ResumoMesclagem
     .from("propostas_televendas")
     .upsert(linhas.map((l) => ({ ...l, atualizado_em: new Date().toISOString() })), { onConflict: "numero" });
   if (erroUpsert) throw new Error(`Falha ao salvar propostas no Supabase: ${erroUpsert.message}`);
+
+  // Itens/produtos — só vêm da sincronização com a Tiny (base da Curva ABC).
+  const linhasItens = lista.flatMap((p) =>
+    (p.itens ?? []).map((item: ItemProduto) => ({
+      numero_proposta: p.numero,
+      data_criacao: p.dataCriacao,
+      produto_id: item.produtoId,
+      sku: item.sku,
+      descricao: item.descricao,
+      quantidade: item.quantidade,
+      valor_unitario: item.valorUnitario,
+      valor_total: item.quantidade * item.valorUnitario,
+      atualizado_em: new Date().toISOString(),
+    })),
+  );
+  if (linhasItens.length > 0) {
+    const { error: erroItens } = await supabase
+      .from("propostas_televendas_itens")
+      .upsert(linhasItens, { onConflict: "numero_proposta,produto_id" });
+    if (erroItens) throw new Error(`Falha ao salvar itens de produtos no Supabase: ${erroItens.message}`);
+  }
 
   const novasCriadas = lista.filter((p) => !numerosExistentes.has(p.numero)).length;
   const atualizadas = lista.length - novasCriadas;

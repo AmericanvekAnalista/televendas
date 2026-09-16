@@ -63,8 +63,15 @@ interface ItemLista {
   valorTotal: string;
 }
 
+interface ItemDetalheOrcamento {
+  produto: { id: number; sku?: string | null; descricao: string };
+  quantidade: number;
+  valorUnitario: number;
+}
+
 interface DetalheOrcamento {
   assinatura?: { responsavel?: string } | null;
+  itens?: ItemDetalheOrcamento[];
 }
 
 interface RespostaBusca<T> {
@@ -148,7 +155,7 @@ export async function GET() {
     .map(({ item, resp }) => {
       const responsavel = normalizar(resp.dado?.assinatura?.responsavel ?? "");
       const vendedor = VENDEDORES_TELEVENDAS.find((v) => responsavel.includes(v));
-      return vendedor ? { item, vendedor } : null;
+      return vendedor ? { item, vendedor, itensDetalhe: resp.dado?.itens ?? [] } : null;
     })
     .filter((c) => c !== null);
 
@@ -169,7 +176,7 @@ export async function GET() {
 
   // 4. Monta e salva (upsert por número, igual à importação por CSV).
   const propostas: Proposta[] = [];
-  for (const { item, vendedor } of candidatos) {
+  for (const { item, vendedor, itensDetalhe } of candidatos) {
     const status = paraStatus(item.situacao);
     if (!status) continue;
     propostas.push({
@@ -182,6 +189,18 @@ export async function GET() {
       vendedor,
       status,
       integrada: status === "concluida",
+      // Itens só importam pra Curva ABC, que só olha propostas concluídas
+      // (vendas de fato) — não vale a pena guardar pra rascunho/pendente/etc.
+      itens:
+        status === "concluida"
+          ? itensDetalhe.map((i) => ({
+              produtoId: i.produto.id,
+              sku: i.produto.sku || null,
+              descricao: i.produto.descricao,
+              quantidade: Number(i.quantidade),
+              valorUnitario: Number(i.valorUnitario),
+            }))
+          : undefined,
     });
   }
 

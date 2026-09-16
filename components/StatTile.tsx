@@ -1,8 +1,9 @@
+import type { ReactNode } from "react";
 import type { Delta } from "@/lib/metrics";
 import { DeltaBadge } from "./DeltaBadge";
 
 interface StatTileProps {
-  label: string;
+  label: ReactNode;
   value: string;
   subvalor?: string;
   delta?: Delta;

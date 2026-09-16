@@ -76,7 +76,7 @@ function paraDataUTC(iso: string): Date {
   return new Date(Date.UTC(ano, mes - 1, dia));
 }
 
-function noIntervalo(iso: string, inicio: Date, fim: Date): boolean {
+export function noIntervalo(iso: string, inicio: Date, fim: Date): boolean {
   const d = paraDataUTC(iso);
   return d.getTime() >= inicio.getTime() && d.getTime() <= fim.getTime();
 }
@@ -152,7 +152,7 @@ export function resumoDoPeriodo(propostas: Proposta[], faixa: Faixa): ResumoPeri
   };
 }
 
-function formatarRotuloFaixa(faixa: Faixa): string {
+export function formatarRotuloFaixa(faixa: Faixa): string {
   const fmt = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
   return `${fmt(faixa.inicio)}–${fmt(faixa.fim)}`;
 }

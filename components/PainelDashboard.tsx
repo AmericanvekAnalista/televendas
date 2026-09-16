@@ -9,14 +9,14 @@ import { RankingVendedores } from "./RankingVendedores";
 import { CurvaABC } from "./CurvaABC";
 import type { Comparativo, Contagem, PontoSerie, UnidadePeriodo } from "@/lib/metrics";
 import { calcularDelta } from "@/lib/metrics";
-import type { ComparativoCurvaABC } from "@/lib/curva-abc";
+import type { ResumoCurvaABC } from "@/lib/curva-abc";
 import { formatarMoeda, formatarMoedaCompacta, formatarNumero, formatarPercentual } from "@/lib/format";
 
 interface PainelDashboardProps {
   comparativos: Record<UnidadePeriodo, Comparativo>;
   series: Record<UnidadePeriodo, PontoSerie[]>;
   rascunhosParados: Contagem;
-  curvaABC: ComparativoCurvaABC;
+  curvaABC: ResumoCurvaABC;
   fonteDados: "amostra" | "importado";
 }
 
@@ -127,7 +127,7 @@ export function PainelDashboard({ comparativos, series, rascunhosParados, curvaA
 
       <TendenciaConcluidas serie={serie} unidade={unidade} />
 
-      <CurvaABC comparativo={curvaABC} />
+      <CurvaABC resumo={curvaABC} />
 
       <div className="rounded-xl border border-border bg-surface p-4 sm:p-5">
         <div className="flex items-center justify-between gap-4">

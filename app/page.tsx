@@ -1,7 +1,7 @@
 import { PainelDashboard } from "@/components/PainelDashboard";
 import { PROPOSTAS as PROPOSTAS_AMOSTRA, DATA_REFERENCIA as REFERENCIA_AMOSTRA } from "@/lib/mock-data";
 import { compararPeriodo, serieTendencia, rascunhosParados } from "@/lib/metrics";
-import { compararCurvaABC } from "@/lib/curva-abc";
+import { curvaABCAnoCorrente } from "@/lib/curva-abc";
 import { lerPropostasSalvas, lerItensVendidos } from "@/lib/store";
 import type { Proposta } from "@/lib/types";
 
@@ -27,7 +27,7 @@ export default async function Page() {
     mes: serieTendencia(propostas, "mes", referencia, 9),
   };
   const parados = rascunhosParados(propostas, referencia, 15);
-  const curvaABC = compararCurvaABC(itensVendidos, referencia);
+  const curvaABC = curvaABCAnoCorrente(itensVendidos, referencia);
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">

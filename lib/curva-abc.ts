@@ -1,4 +1,4 @@
-import { faixasComparativas, noIntervalo, type Faixa } from "./metrics";
+import { noIntervalo, type Faixa } from "./metrics";
 import type { ItemVendido } from "./store";
 
 export type ClasseABC = "A" | "B" | "C";
@@ -24,11 +24,6 @@ export interface ResumoCurvaABC {
   produtos: ProdutoAgregado[];
   porClasse: Record<ClasseABC, { count: number; valor: number; percentual: number }>;
   valorTotal: number;
-}
-
-export interface ComparativoCurvaABC {
-  atual: ResumoCurvaABC;
-  anterior: ResumoCurvaABC;
 }
 
 function classificar(percentualAcumulado: number): ClasseABC {
@@ -100,14 +95,11 @@ export function resumoCurvaABC(itens: ItemVendido[], faixa: Faixa): ResumoCurvaA
 }
 
 /**
- * Curva ABC do mês atual (até hoje) vs. o mesmo intervalo do mês anterior.
- * Sempre mensal — diferente do resto do painel, que alterna entre semana e
- * mês, a Curva ABC não faz sentido reclassificada toda semana.
+ * Curva ABC acumulada desde 1º de janeiro do ano corrente até hoje — não é
+ * mais um comparativo de período (mês atual vs. anterior): é o quadro
+ * completo do ano, sempre reiniciando em janeiro.
  */
-export function compararCurvaABC(itens: ItemVendido[], referencia: Date): ComparativoCurvaABC {
-  const { atual, anterior } = faixasComparativas(referencia, "mes");
-  return {
-    atual: resumoCurvaABC(itens, atual),
-    anterior: resumoCurvaABC(itens, anterior),
-  };
+export function curvaABCAnoCorrente(itens: ItemVendido[], referencia: Date): ResumoCurvaABC {
+  const inicioAno = new Date(Date.UTC(referencia.getUTCFullYear(), 0, 1));
+  return resumoCurvaABC(itens, { inicio: inicioAno, fim: referencia });
 }

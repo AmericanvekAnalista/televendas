@@ -26,10 +26,11 @@ rascunho  →  pendente  →  aguardando  →  concluída
 
 Classificação clássica de Pareto dos produtos vendidos (só propostas
 **concluídas**, só televendas — mesmo filtro de vendedor do resto do
-painel), comparando o mês atual com o mês anterior:
+painel), **acumulada desde 1º de janeiro do ano corrente até hoje**
+(reinicia sozinha a cada janeiro — não é mais um comparativo mês a mês):
 
 - Produtos ordenados por valor de venda, do maior pro menor.
-- **Classe A** — produtos que somam até 80% do valor acumulado.
+- **Classe A** — produtos que somam até 80% do valor acumulado no ano.
 - **Classe B** — de 80% a 95%.
 - **Classe C** — os últimos 5%.
 
@@ -40,10 +41,10 @@ em "dados de exemplo" e em painéis alimentados só por planilha.
 O gráfico clássico de Pareto usa dois eixos (barras de valor + linha de %
 acumulado); a skill de dataviz usada neste projeto proíbe eixo duplo (a
 combinação de duas escalas é arbitrária e inventa correlação que não existe
-nos dados). Por isso o comparativo mensal aqui aparece em cards por classe
-(valor + variação vs. mês anterior, igual ao resto do painel) e o detalhe
-por produto numa tabela — com % individual e % acumulado como colunas lado
-a lado, não como um segundo eixo.
+nos dados). Por isso aqui aparecem cards por classe (valor, quantidade de
+produtos e % do total do ano) e o detalhe por produto numa tabela — com %
+individual e % acumulado como colunas lado a lado, não como um segundo
+eixo.
 
 ## Estado atual: importação por planilha (CSV)
 
@@ -144,8 +145,8 @@ disso, qualquer push nessa branch redeploya sozinho.
 - `lib/metrics.ts` — agregações por status, cálculo dos períodos
   "semana/mês até hoje" e do período equivalente anterior, série de
   tendência, rascunhos parados.
-- `lib/curva-abc.ts` — classificação ABC (cortes 80%/95%) e comparativo mês
-  atual vs. mês anterior, a partir de `lib/store.ts:lerItensVendidos`.
+- `lib/curva-abc.ts` — classificação ABC (cortes 80%/95%) acumulada desde
+  janeiro, a partir de `lib/store.ts:lerItensVendidos`.
 - `components/CurvaABC.tsx` — cards por classe + tabela de produtos.
 - `lib/theme.ts` / `lib/use-modo.ts` — paleta (clara/escura) validada com a
   skill de dataviz e detecção do esquema de cores do sistema.

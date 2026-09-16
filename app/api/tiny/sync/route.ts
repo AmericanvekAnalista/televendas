@@ -65,20 +65,35 @@ interface DetalheOrcamento {
   assinatura?: { responsavel?: string } | null;
 }
 
-async function buscarJson<T>(caminho: string, token: string): Promise<T | null> {
+interface RespostaBusca<T> {
+  status: number;
+  dado: T | null;
+}
+
+async function buscarJson<T>(caminho: string, token: string): Promise<RespostaBusca<T>> {
   const resposta = await fetch(`${TINY_API_BASE}${caminho}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!resposta.ok) return null;
-  return resposta.json();
+  if (!resposta.ok) return { status: resposta.status, dado: null };
+  return { status: resposta.status, dado: await resposta.json() };
 }
 
-/** Roda até `concorrencia` chamadas em paralelo por vez, sem estourar o rate limit da Tiny. */
+function dormir(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Roda `concorrencia` chamadas em paralelo por vez, com uma pausa entre
+ * lotes — a Tiny não documenta um rate limit, então isso é só uma
+ * precaução (uma tentativa anterior, sem pausa e com 10 em paralelo,
+ * derrubou silenciosamente todas as chamadas a /contatos).
+ */
 async function emLotes<T, R>(itens: T[], concorrencia: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const resultado: R[] = [];
   for (let i = 0; i < itens.length; i += concorrencia) {
     const lote = itens.slice(i, i + concorrencia);
     resultado.push(...(await Promise.all(lote.map(fn))));
+    if (i + concorrencia < itens.length) await dormir(300);
   }
   return resultado;
 }
@@ -100,7 +115,7 @@ export async function GET() {
   const itens: ItemLista[] = [];
   const limit = 100;
   for (let offset = 0; ; offset += limit) {
-    const pagina = await buscarJson<{ itens: ItemLista[]; paginacao: { total: number } }>(
+    const { dado: pagina } = await buscarJson<{ itens: ItemLista[]; paginacao: { total: number } }>(
       `/orcamentos?limit=${limit}&offset=${offset}`,
       token,
     );
@@ -111,14 +126,15 @@ export async function GET() {
   }
 
   // 2. Detalhe de cada um — só ele tem quem assinou a proposta.
-  const comDetalhe = await emLotes(itens, 10, async (item) => ({
+  const comDetalhe = await emLotes(itens, 5, async (item) => ({
     item,
-    detalhe: await buscarJson<DetalheOrcamento>(`/orcamentos/${item.id}`, token),
+    resp: await buscarJson<DetalheOrcamento>(`/orcamentos/${item.id}`, token),
   }));
+  const detalhesComFalha = comDetalhe.filter((c) => c.resp.status !== 200).length;
 
   const candidatos = comDetalhe
-    .map(({ item, detalhe }) => {
-      const responsavel = normalizar(detalhe?.assinatura?.responsavel ?? "");
+    .map(({ item, resp }) => {
+      const responsavel = normalizar(resp.dado?.assinatura?.responsavel ?? "");
       const vendedor = VENDEDORES_TELEVENDAS.find((v) => responsavel.includes(v));
       return vendedor ? { item, vendedor } : null;
     })
@@ -126,11 +142,12 @@ export async function GET() {
 
   // 3. Nome do cliente — uma chamada por contato único, não por proposta.
   const contatoIds = [...new Set(candidatos.map((c) => c.item.contato.id))];
-  const nomes = await emLotes(contatoIds, 10, async (id) => ({
-    id,
-    nome: (await buscarJson<{ nome: string }>(`/contatos/${id}`, token))?.nome ?? "não identificado",
-  }));
-  const nomePorContato = new Map(nomes.map((n) => [n.id, n.nome]));
+  const nomes = await emLotes(contatoIds, 5, async (id) => {
+    const { status, dado } = await buscarJson<{ nome: string }>(`/contatos/${id}`, token);
+    return { id, status, nome: dado?.nome ?? null };
+  });
+  const contatosComFalha = nomes.filter((n) => n.status !== 200).length;
+  const nomePorContato = new Map(nomes.map((n) => [n.id, n.nome ?? "não identificado"]));
 
   // 4. Monta e salva (upsert por número, igual à importação por CSV).
   const propostas: Proposta[] = [];
@@ -155,5 +172,12 @@ export async function GET() {
   }
 
   const resumo = await mesclarESalvar(propostas);
-  return Response.json({ ok: true, examinadas: itens.length, encontradas: propostas.length, ...resumo });
+  return Response.json({
+    ok: true,
+    examinadas: itens.length,
+    encontradas: propostas.length,
+    detalhesComFalha,
+    contatosComFalha,
+    ...resumo,
+  });
 }

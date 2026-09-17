@@ -18,11 +18,19 @@ interface PainelDashboardProps {
   rascunhosParados: Contagem;
   curvaABC: ResumoCurvaABC;
   semDados: boolean;
+  empresa: string | null;
 }
 
 const SEM_DELTA = { abs: 0, pct: null } as const;
 
-export function PainelDashboard({ comparativos, series, rascunhosParados, curvaABC, semDados }: PainelDashboardProps) {
+export function PainelDashboard({
+  comparativos,
+  series,
+  rascunhosParados,
+  curvaABC,
+  semDados,
+  empresa,
+}: PainelDashboardProps) {
   const [unidade, setUnidade] = useState<UnidadePeriodo>("semana");
   const comp = comparativos[unidade];
   const serie = series[unidade];
@@ -55,7 +63,9 @@ export function PainelDashboard({ comparativos, series, rascunhosParados, curvaA
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary sm:text-2xl">Televendas — Propostas Comerciais</h1>
+          <h1 className="text-xl font-semibold text-text-primary sm:text-2xl">
+            {empresa ? `Televendas ${empresa}` : "Televendas"} — Propostas Comerciais
+          </h1>
           <p className="text-sm text-text-muted">
             Período atual <span className="text-text-secondary">{comp.rotuloAtual}</span> · anterior{" "}
             <span className="text-text-secondary">{comp.rotuloAnterior}</span>

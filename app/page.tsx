@@ -23,6 +23,7 @@ export default async function Page() {
   };
   const parados = rascunhosParados(propostas, referencia, 15);
   const curvaABC = curvaABCAnoCorrente(itensVendidos, referencia);
+  const empresa = process.env.EMPRESA_NOME || null;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
@@ -32,6 +33,7 @@ export default async function Page() {
         rascunhosParados={parados}
         curvaABC={curvaABC}
         semDados={semDados}
+        empresa={empresa}
       />
     </main>
   );

@@ -12,8 +12,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const empresa = process.env.EMPRESA_NOME;
+
 export const metadata: Metadata = {
-  title: "Dashboard Televendas",
+  title: empresa ? `Dashboard Televendas — ${empresa}` : "Dashboard Televendas",
   description: "Painel de propostas comerciais do setor de televendas",
 };
 

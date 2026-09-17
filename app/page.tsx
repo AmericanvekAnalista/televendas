@@ -2,6 +2,7 @@ import { PainelDashboard } from "@/components/PainelDashboard";
 import { compararPeriodo, serieTendencia, rascunhosParados } from "@/lib/metrics";
 import { curvaABCAnoCorrente } from "@/lib/curva-abc";
 import { lerPropostasSalvas, lerItensVendidos } from "@/lib/store";
+import { loginConfigurado } from "@/lib/auth";
 
 // Sem isso, o Next serviria a versão pré-renderizada em build (sem os dados
 // importados depois) em vez de consultar o Supabase a cada acesso.
@@ -34,6 +35,7 @@ export default async function Page() {
         curvaABC={curvaABC}
         semDados={semDados}
         empresa={empresa}
+        loginConfigurado={loginConfigurado()}
       />
     </main>
   );

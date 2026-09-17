@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatTile } from "./StatTile";
 import { EstagiosFunil } from "./EstagiosFunil";
@@ -19,6 +20,7 @@ interface PainelDashboardProps {
   curvaABC: ResumoCurvaABC;
   semDados: boolean;
   empresa: string | null;
+  loginConfigurado: boolean;
 }
 
 const SEM_DELTA = { abs: 0, pct: null } as const;
@@ -30,7 +32,9 @@ export function PainelDashboard({
   curvaABC,
   semDados,
   empresa,
+  loginConfigurado,
 }: PainelDashboardProps) {
+  const router = useRouter();
   const [unidade, setUnidade] = useState<UnidadePeriodo>("semana");
   const comp = comparativos[unidade];
   const serie = series[unidade];
@@ -75,6 +79,19 @@ export function PainelDashboard({
           <Link href="/importar" className="text-sm font-medium text-text-secondary hover:text-text-primary">
             Importar dados
           </Link>
+          {loginConfigurado ? (
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch("/api/auth/logout", { method: "POST" });
+                router.replace("/login");
+                router.refresh();
+              }}
+              className="text-sm font-medium text-text-secondary hover:text-text-primary cursor-pointer"
+            >
+              Sair
+            </button>
+          ) : null}
           <div className="flex rounded-lg border border-border p-0.5">
           {(["semana", "mes"] as const).map((u) => (
             <button

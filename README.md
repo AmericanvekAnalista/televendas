@@ -106,10 +106,15 @@ Rodar `npm run dev` **dentro deste ambiente de desenvolvimento** não
 alcança `*.supabase.co` (rede restrita do sandbox) — funciona normalmente
 fora daqui (localhost de vocês, ou já em produção na Vercel).
 
-### Limitações desta primeira versão
+## Acesso
 
-- **Sem autenticação** no endpoint de importação (`/api/propostas`). Para uso
-  interno tudo bem, mas não deixe a URL pública sem controle de acesso.
+O painel inteiro (menos as rotas da Tiny, usadas pela própria Tiny e pelo
+cron, não por gente logada) fica atrás de uma tela de login se
+`DASH_USUARIO`/`DASH_SENHA` estiverem configuradas (Vercel → Environment
+Variables). É uma senha só, compartilhada — sem cadastro de usuário, sem
+"esqueci a senha": pra times pequenos, uma tabela de contas seria over-
+engineering. Sem essas variáveis configuradas, o painel continua público
+(estado anterior), então dá pra ligar quando quiser sem quebrar nada.
 
 ## Rodando localmente
 
@@ -162,6 +167,8 @@ disso, qualquer push nessa branch redeploya sozinho.
   que recebe as propostas já validadas no navegador e salva no store.
 - `lib/tiny-oauth.ts` + `app/api/tiny/` — integração OAuth2 com a Tiny (ver
   "Próximos passos" abaixo; ainda em andamento).
+- `lib/auth.ts` + `middleware.ts` + `app/login/` + `app/api/auth/` — login
+  por senha compartilhada (ver "Acesso" acima).
 
 ### Como os comparativos funcionam
 

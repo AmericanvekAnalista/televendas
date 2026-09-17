@@ -17,12 +17,12 @@ interface PainelDashboardProps {
   series: Record<UnidadePeriodo, PontoSerie[]>;
   rascunhosParados: Contagem;
   curvaABC: ResumoCurvaABC;
-  fonteDados: "amostra" | "importado";
+  semDados: boolean;
 }
 
 const SEM_DELTA = { abs: 0, pct: null } as const;
 
-export function PainelDashboard({ comparativos, series, rascunhosParados, curvaABC, fonteDados }: PainelDashboardProps) {
+export function PainelDashboard({ comparativos, series, rascunhosParados, curvaABC, semDados }: PainelDashboardProps) {
   const [unidade, setUnidade] = useState<UnidadePeriodo>("semana");
   const comp = comparativos[unidade];
   const serie = series[unidade];
@@ -42,13 +42,12 @@ export function PainelDashboard({ comparativos, series, rascunhosParados, curvaA
 
   return (
     <div className="flex flex-col gap-6">
-      {fonteDados === "amostra" ? (
+      {semDados ? (
         <div className="rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-text-secondary">
-          <strong className="text-text-primary">Dados de exemplo.</strong> Estes números foram reconstruídos a
-          partir dos prints do Tiny (ago/set de 2026) mais dados gerados para completar o histórico — ainda não é
-          uma integração ao vivo com o ERP.{" "}
+          <strong className="text-text-primary">Nenhuma proposta ainda.</strong> Assim que a sincronização com a
+          Tiny rodar (ou você importar uma planilha), os números aparecem aqui automaticamente.{" "}
           <Link href="/importar" className="font-medium text-text-primary underline underline-offset-2">
-            Importar planilha real
+            Importar planilha
           </Link>
           .
         </div>

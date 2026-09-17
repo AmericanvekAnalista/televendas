@@ -46,20 +46,21 @@ produtos e % do total do ano) e o detalhe por produto numa tabela — com %
 individual e % acumulado como colunas lado a lado, não como um segundo
 eixo.
 
-## Estado atual: importação por planilha (CSV)
+## Fontes de dados
 
-O painel tem duas fontes de dados, escolhidas automaticamente:
+O painel lê tudo de uma tabela só (`propostas_televendas`, no Supabase) —
+não tem dados de exemplo/mock embutidos. Duas formas de popular essa
+tabela, que podem ser usadas juntas (upsert por número, uma nunca apaga o
+que a outra trouxe):
 
-- **Se já houver propostas importadas** (`data/propostas.json`, criado pela
-  tela `/importar`), o painel usa esses dados reais e compara contra a data
-  de hoje de verdade.
-- **Caso contrário**, cai de volta para `lib/mock-data.ts` — uma amostra
-  reconstruída a partir dos 4 prints enviados (propostas de agosto e
-  setembro/2026), com um aviso visível no topo do painel ("Dados de
-  exemplo"). 43 desses registros são reais (copiados linha a linha dos
-  prints); o restante é gerado para completar os totais que os prints
-  confirmaram por aba e simular um histórico anterior para os gráficos de
-  tendência terem o que comparar.
+- **Automática** — sincronização diária com a Tiny (ver "Próximos passos"
+  abaixo). É a fonte principal depois de configurada.
+- **Manual** — importação por planilha CSV, pela tela `/importar`. Útil
+  antes de configurar a integração com a Tiny, ou pra quem não usa Tiny.
+
+Sem nenhuma proposta ainda (empresa nova, integração ainda não rodou), o
+painel mostra os números zerados e um aviso convidando a importar uma
+planilha.
 
 ### Como importar
 
@@ -141,7 +142,6 @@ disso, qualquer push nessa branch redeploya sozinho.
 ## Estrutura
 
 - `lib/types.ts` — modelo de dados (`Proposta`, `StatusProposta`).
-- `lib/mock-data.ts` — dados de exemplo (ver acima).
 - `lib/metrics.ts` — agregações por status, cálculo dos períodos
   "semana/mês até hoje" e do período equivalente anterior, série de
   tendência, rascunhos parados.

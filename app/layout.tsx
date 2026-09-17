@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dashboard Televendas — Americanvek",
+  title: "Dashboard Televendas",
   description: "Painel de propostas comerciais do setor de televendas",
 };
 

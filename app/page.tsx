@@ -1,21 +1,16 @@
 import { PainelDashboard } from "@/components/PainelDashboard";
-import { PROPOSTAS as PROPOSTAS_AMOSTRA, DATA_REFERENCIA as REFERENCIA_AMOSTRA } from "@/lib/mock-data";
 import { compararPeriodo, serieTendencia, rascunhosParados } from "@/lib/metrics";
 import { curvaABCAnoCorrente } from "@/lib/curva-abc";
 import { lerPropostasSalvas, lerItensVendidos } from "@/lib/store";
-import type { Proposta } from "@/lib/types";
 
 // Sem isso, o Next serviria a versão pré-renderizada em build (sem os dados
 // importados depois) em vez de consultar o Supabase a cada acesso.
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const [importadas, itensVendidos] = await Promise.all([lerPropostasSalvas(), lerItensVendidos()]);
-  const usandoDadosReais = importadas.length > 0;
-
-  const propostas: Proposta[] = usandoDadosReais ? importadas : PROPOSTAS_AMOSTRA;
-  const referencia = usandoDadosReais ? new Date() : REFERENCIA_AMOSTRA;
-  const fonteDados = usandoDadosReais ? "importado" : "amostra";
+  const [propostas, itensVendidos] = await Promise.all([lerPropostasSalvas(), lerItensVendidos()]);
+  const referencia = new Date();
+  const semDados = propostas.length === 0;
 
   const comparativos = {
     semana: compararPeriodo(propostas, "semana", referencia),
@@ -36,7 +31,7 @@ export default async function Page() {
         series={series}
         rascunhosParados={parados}
         curvaABC={curvaABC}
-        fonteDados={fonteDados}
+        semDados={semDados}
       />
     </main>
   );

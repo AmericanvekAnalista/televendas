@@ -114,12 +114,12 @@ async function buscarJson<T>(caminho: string, token: string, tentativas = 3, esp
  * precaução (uma tentativa anterior, sem pausa e com 10 em paralelo,
  * derrubou silenciosamente todas as chamadas a /contatos).
  */
-async function emLotes<T, R>(itens: T[], concorrencia: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+async function emLotes<T, R>(itens: T[], concorrencia: number, fn: (item: T) => Promise<R>, pausaMs = 300): Promise<R[]> {
   const resultado: R[] = [];
   for (let i = 0; i < itens.length; i += concorrencia) {
     const lote = itens.slice(i, i + concorrencia);
     resultado.push(...(await Promise.all(lote.map(fn))));
-    if (i + concorrencia < itens.length) await dormir(300);
+    if (i + concorrencia < itens.length) await dormir(pausaMs);
   }
   return resultado;
 }
@@ -160,11 +160,20 @@ export async function GET(request: Request) {
   const itens = todosItens.slice(offset, offset + LOTE_HISTORICO);
   const proximoOffset = offset + LOTE_HISTORICO < todosItens.length ? offset + LOTE_HISTORICO : null;
 
-  // 2. Detalhe de cada um — só ele tem quem assinou a proposta.
-  const comDetalhe = await emLotes(itens, 5, async (item) => ({
-    item,
-    resp: await buscarJson<DetalheOrcamento>(`/orcamentos/${item.id}`, token),
-  }));
+  // 2. Detalhe de cada um — só ele tem quem assinou a proposta. Uma falha
+  // aqui não é cosmética como no nome do cliente: o orçamento inteiro fica
+  // de fora desta rodada (o upsert não toca nele, então o status antigo
+  // persiste até uma sincronização futura conseguir). Por isso mais
+  // tentativas e menos paralelismo que o padrão.
+  const comDetalhe = await emLotes(
+    itens,
+    3,
+    async (item) => ({
+      item,
+      resp: await buscarJson<DetalheOrcamento>(`/orcamentos/${item.id}`, token, 5, 800),
+    }),
+    500,
+  );
   const detalhesComFalha = comDetalhe.filter((c) => c.resp.status !== 200).length;
 
   const candidatos = comDetalhe

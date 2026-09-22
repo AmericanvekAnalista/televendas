@@ -141,15 +141,26 @@ export async function GET(request: Request) {
   const limiteDataStr = limiteData.toISOString().slice(0, 10);
 
   // 1. Lista paginada (mais recentes primeiro), parando assim que a página
-  // só tem orçamentos mais antigos que a janela que nos interessa.
+  // só tem orçamentos mais antigos que a janela que nos interessa. Uma
+  // página que falha mesmo após as tentativas não é "acabou a lista" — é
+  // rate limit; reportar como erro em vez de devolver "zero encontrado"
+  // (que já nos confundiu, indistinguível de uma janela genuinamente vazia).
   const todosItens: ItemLista[] = [];
   const limit = 100;
   for (let paginaOffset = 0; ; paginaOffset += limit) {
-    const { dado: pagina } = await buscarJson<{ itens: ItemLista[]; paginacao: { total: number } }>(
+    const { status, dado: pagina } = await buscarJson<{ itens: ItemLista[]; paginacao: { total: number } }>(
       `/orcamentos?limit=${limit}&offset=${paginaOffset}`,
       token,
+      5,
+      800,
     );
-    if (!pagina || pagina.itens.length === 0) break;
+    if (!pagina) {
+      return Response.json(
+        { erro: `Falha ao listar orçamentos da Tiny (rate limit provável, HTTP ${status}). Tente novamente em alguns minutos.` },
+        { status: 502 },
+      );
+    }
+    if (pagina.itens.length === 0) break;
     todosItens.push(...pagina.itens.filter((i) => i.data >= limiteDataStr));
     const maisAntigoDaPagina = pagina.itens[pagina.itens.length - 1].data;
     if (maisAntigoDaPagina < limiteDataStr || paginaOffset + limit >= pagina.paginacao.total) break;

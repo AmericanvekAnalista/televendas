@@ -77,7 +77,11 @@ interface ItemDetalheOrcamento {
 }
 
 interface DetalheOrcamento {
-  assinatura?: { responsavel?: string } | null;
+  // Qual desses dois campos carrega o nome de quem vendeu varia por empresa
+  // na Tiny — a Americanvek usa "responsavel"; a Ardut usa "saudacao" (o
+  // "responsavel" dela vem genérico, "Departamento de vendas"). Checamos os
+  // dois pra não depender de convenção de uma conta específica.
+  assinatura?: { responsavel?: string; saudacao?: string } | null;
   itens?: ItemDetalheOrcamento[];
 }
 
@@ -189,8 +193,10 @@ export async function GET(request: Request) {
 
   const candidatos = comDetalhe
     .map(({ item, resp }) => {
-      const responsavel = normalizar(resp.dado?.assinatura?.responsavel ?? "");
-      const vendedor = VENDEDORES_TELEVENDAS.find((v) => responsavel.includes(v));
+      const assinatura = normalizar(
+        `${resp.dado?.assinatura?.responsavel ?? ""} ${resp.dado?.assinatura?.saudacao ?? ""}`,
+      );
+      const vendedor = VENDEDORES_TELEVENDAS.find((v) => assinatura.includes(v));
       return vendedor ? { item, vendedor, itensDetalhe: resp.dado?.itens ?? [] } : null;
     })
     .filter((c) => c !== null);

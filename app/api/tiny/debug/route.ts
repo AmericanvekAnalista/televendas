@@ -22,6 +22,16 @@ export async function GET(request: Request) {
     return Response.json({ erro: (e as Error).message }, { status: 400 });
   }
 
+  // Decodifica o JWT sem chamar a Tiny de novo — só pra conferir pra qual
+  // conta/permissões esse token foi emitido.
+  let tokenPayload: unknown = null;
+  try {
+    const [, payload] = token.split(".");
+    tokenPayload = JSON.parse(Buffer.from(payload, "base64").toString("utf-8"));
+  } catch {
+    tokenPayload = "não foi possível decodificar";
+  }
+
   const restantes = new Set(numeros);
   const encontrados: Record<string, unknown> = {};
 
@@ -30,7 +40,7 @@ export async function GET(request: Request) {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!resp.ok) {
-      return Response.json({ erro: `Falha na listagem: HTTP ${resp.status}`, encontrados, restantes: [...restantes] }, { status: 502 });
+      return Response.json({ erro: `Falha na listagem: HTTP ${resp.status}`, tokenPayload, encontrados, restantes: [...restantes] }, { status: 502 });
     }
     const pagina = await resp.json();
     if (!pagina.itens?.length) break;
@@ -54,5 +64,5 @@ export async function GET(request: Request) {
     if (offset + 100 >= pagina.paginacao.total) break;
   }
 
-  return Response.json({ encontrados, naoEncontrados: [...restantes] });
+  return Response.json({ tokenPayload, encontrados, naoEncontrados: [...restantes] });
 }

@@ -129,12 +129,21 @@ export async function mesclarESalvar(novas: Proposta[]): Promise<ResumoMesclagem
   const lista = Array.from(porNumero.values());
   const numeros = lista.map((p) => p.numero);
 
-  const { data: existentes, error: erroLeitura } = await supabase
-    .from("propostas_televendas")
-    .select("numero")
-    .in("numero", numeros);
-  if (erroLeitura) throw new Error(`Falha ao verificar propostas existentes: ${erroLeitura.message}`);
-  const numerosExistentes = new Set((existentes ?? []).map((r) => r.numero as number));
+  // .in() vira uma query string GET — com lote grande (sincronização depois
+  // de um período sem rodar, ou backfill), o array inteiro de números pode
+  // estourar o limite de tamanho de URL do gateway da Supabase (502 Bad
+  // Gateway). Quebra em pedaços pra nunca gerar uma URL grande demais.
+  const TAMANHO_LOTE_EXISTENTES = 200;
+  const numerosExistentes = new Set<number>();
+  for (let i = 0; i < numeros.length; i += TAMANHO_LOTE_EXISTENTES) {
+    const pedaco = numeros.slice(i, i + TAMANHO_LOTE_EXISTENTES);
+    const { data: existentes, error: erroLeitura } = await supabase
+      .from("propostas_televendas")
+      .select("numero")
+      .in("numero", pedaco);
+    if (erroLeitura) throw new Error(`Falha ao verificar propostas existentes: ${erroLeitura.message}`);
+    for (const r of existentes ?? []) numerosExistentes.add(r.numero as number);
+  }
 
   const linhas: LinhaTabela[] = lista.map((p) => ({
     numero: p.numero,

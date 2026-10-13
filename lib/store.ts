@@ -119,6 +119,26 @@ export interface ResumoMesclagem {
   total: number;
 }
 
+/**
+ * Nome do cliente já salvo pra cada número, só pros que já têm um nome real
+ * (não "não identificado"). Usado pra sincronização não apagar um nome
+ * correto quando a busca do contato na Tiny falha dessa vez — ver sync/route.ts.
+ */
+export async function buscarClientesExistentes(numeros: number[]): Promise<Map<number, string>> {
+  const supabase = getClient();
+  const resultado = new Map<number, string>();
+  const TAMANHO_LOTE = 200;
+  for (let i = 0; i < numeros.length; i += TAMANHO_LOTE) {
+    const pedaco = numeros.slice(i, i + TAMANHO_LOTE);
+    const { data, error } = await supabase.from("propostas_televendas").select("numero, cliente").in("numero", pedaco);
+    if (error) throw new Error(`Falha ao buscar clientes existentes: ${error.message}`);
+    for (const r of data ?? []) {
+      if (r.cliente && r.cliente !== "não identificado") resultado.set(r.numero as number, r.cliente as string);
+    }
+  }
+  return resultado;
+}
+
 /** Faz upsert por `numero` — nunca perde propostas de importações anteriores. */
 export async function mesclarESalvar(novas: Proposta[]): Promise<ResumoMesclagem> {
   const supabase = getClient();

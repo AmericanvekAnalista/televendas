@@ -1,5 +1,5 @@
 import { obterTokenValido, TINY_API_BASE } from "@/lib/tiny-oauth";
-import { mesclarESalvar } from "@/lib/store";
+import { buscarClientesExistentes, mesclarESalvar } from "@/lib/store";
 import type { Proposta, StatusProposta } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -220,17 +220,31 @@ export async function GET(request: Request) {
   const contatosComFalha = nomes.filter((n) => n.status !== 200).length;
   const nomePorContato = new Map(nomes.map((n) => [n.id, n.nome ?? "não identificado"]));
 
+  // Quando a busca do contato falha (comum sob carga pesada na Tiny), não
+  // vale sobrescrever um nome já correto, salvo numa sincronização anterior,
+  // com "não identificado" — mantém o que já tínhamos nesse caso.
+  const numerosSemNomeFresco = candidatos
+    .filter((c) => nomePorContato.get(c.item.contato.id) === "não identificado")
+    .map((c) => Number(c.item.numeroProposta));
+  const clientesExistentes =
+    numerosSemNomeFresco.length > 0 ? await buscarClientesExistentes(numerosSemNomeFresco) : new Map<number, string>();
+
   // 4. Monta e salva (upsert por número, igual à importação por CSV).
   const propostas: Proposta[] = [];
   for (const { item, vendedor, itensDetalhe } of candidatos) {
     const status = paraStatus(item.situacao);
     if (!status) continue;
+    const nomeFresco = nomePorContato.get(item.contato.id) ?? "não identificado";
+    const cliente =
+      nomeFresco === "não identificado"
+        ? (clientesExistentes.get(Number(item.numeroProposta)) ?? "não identificado")
+        : nomeFresco;
     propostas.push({
       id: `tiny-${item.id}`,
       numero: Number(item.numeroProposta),
       dataCriacao: item.data,
       proximoContato: paraDataOuNull(item.dataProximoContato),
-      cliente: nomePorContato.get(item.contato.id) ?? "não identificado",
+      cliente,
       valor: paraValor(item.valorTotal),
       vendedor,
       status,

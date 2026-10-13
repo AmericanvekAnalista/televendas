@@ -18,8 +18,12 @@ const VENDEDORES_TELEVENDAS = ["ana karolina", "ivis"];
 /** Só sincroniza o que pode entrar nos comparativos de período (mês atual +
  * o mês anterior até o mesmo dia), com folga. Evita varrer os milhares de
  * orçamentos antigos da empresa inteira a cada sincronização. Sobrescrevível
- * via `?janela=` (dias) pra backfill histórico manual. */
-const JANELA_DIAS = 45;
+ * via `?janela=` (dias) pra backfill histórico manual, ou via a variável
+ * TINY_JANELA_DIAS por ambiente — a fase de listagem (abaixo) varre a
+ * empresa inteira no período, sem paginação própria, então uma conta com
+ * volume maior pode precisar de uma janela padrão menor pra cada chamada
+ * caber no tempo da função. */
+const JANELA_DIAS = Number(process.env.TINY_JANELA_DIAS) || 45;
 
 /** Backfill histórico (`?janela=` grande) não cabe numa chamada só — o
  * detalhe de cada orçamento da empresa inteira (não só televendas) exige

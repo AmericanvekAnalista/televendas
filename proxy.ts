@@ -14,5 +14,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/tiny|api/auth|login|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api/tiny|api/auth|api/keep-alive|login|_next/static|_next/image|favicon.ico).*)"],
 };

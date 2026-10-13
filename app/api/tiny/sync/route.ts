@@ -210,13 +210,22 @@ export async function GET(request: Request) {
   await dormir(3000);
 
   // 3. Nome do cliente — uma chamada por contato único, não por proposta.
+  // A ordem segue a da listagem (mais recentes primeiro), então os
+  // contatos das propostas mais antigas da janela são sempre os últimos
+  // processados aqui — e os que mais sofrem com a cota da Tiny já gasta
+  // pelas fases anteriores dentro desta mesma chamada. Por isso menos
+  // paralelismo, mais tentativas e pausa maior que o padrão, igual à fase
+  // de detalhe.
   const contatoIds = [...new Set(candidatos.map((c) => c.item.contato.id))];
-  const nomes = await emLotes(contatoIds, 5, async (id) => {
-    // Mais tentativas que o padrão: essa fase, vindo logo depois da de
-    // detalhes, é a que mais esbarra no limite da Tiny.
-    const { status, dado } = await buscarJson<{ nome: string }>(`/contatos/${id}`, token, 5);
-    return { id, status, nome: dado?.nome ?? null };
-  });
+  const nomes = await emLotes(
+    contatoIds,
+    3,
+    async (id) => {
+      const { status, dado } = await buscarJson<{ nome: string }>(`/contatos/${id}`, token, 5, 800);
+      return { id, status, nome: dado?.nome ?? null };
+    },
+    500,
+  );
   const contatosComFalha = nomes.filter((n) => n.status !== 200).length;
   const nomePorContato = new Map(nomes.map((n) => [n.id, n.nome ?? "não identificado"]));
 

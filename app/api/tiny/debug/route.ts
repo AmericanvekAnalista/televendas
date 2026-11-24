@@ -17,12 +17,21 @@ export async function GET() {
   const primeiroItem = lista.itens?.[0];
 
   let detalhe = null;
+  let vendedorResolvido = null;
   if (primeiroItem) {
     const respDetalhe = await fetch(`${TINY_API_BASE}/orcamentos/${primeiroItem.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     detalhe = await respDetalhe.json();
+
+    const vendedorId = detalhe?.vendedor?.id;
+    if (vendedorId) {
+      const respVendedor = await fetch(`${TINY_API_BASE}/vendedores/${vendedorId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      vendedorResolvido = { status: respVendedor.status, dado: await respVendedor.json().catch(() => null) };
+    }
   }
 
-  return Response.json({ primeiroItemDaLista: primeiroItem, detalheCompleto: detalhe });
+  return Response.json({ primeiroItemDaLista: primeiroItem, detalheCompleto: detalhe, vendedorResolvido });
 }
